@@ -877,10 +877,16 @@ class YumCollection(Collection):
         :returns: Varies depending on the return value of the
                   ``bcfg2-yum-helper`` command.
         """
-        cmd = [self.helper, "-c", self.cfgfile]
+        cmd = [self.helper, "-c", self.cfgfile, "-t", self.cachefile]
         verbose = self.debug_flag or self.setup['verbose']
-        if verbose:
+        if self.setup['verbose']:
             cmd.append("-v")
+        if self.debug_flag:
+            cmd.append("-v")
+            if not self.setup['verbose']:
+                # ensure that the helper is always run with -vv in
+                # debug mode, even if verbose is disabled
+                cmd.append("-v")
         cmd.append(command)
         self.debug_log("Packages: running %s" % " ".join(cmd), flag=verbose)
         try:

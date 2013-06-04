@@ -8,7 +8,10 @@ code.  It's pure madness. """
 import os
 import sys
 import yum
+import atexit
+import shutil
 import logging
+import tempfile
 import Bcfg2.Logger
 from optparse import OptionParser
 try:
@@ -45,9 +48,15 @@ def pkgtup_to_string(package):
 class DepSolver(object):
     """ Yum dependency solver """
 
-    def __init__(self, cfgfile, verbose=1):
+    def __init__(self, cfgfile, tempdir=None, verbose=1):
         self.cfgfile = cfgfile
         self.yumbase = yum.YumBase()
+        self.tmpdir = tempdir
+        # do not use the local rpmdb; instead, use a bogus RPM db
+        # (with no packages in it) as the rpmdb.
+        self.yumbase.rpmdb = \
+            yum.rpmsack.RPMDBPackageSack(root=self.tmpdir,
+                                         persistdir=self.tmpdir)
         # pylint: disable=E1121,W0212
         try:
             self.yumbase.preconf.debuglevel = verbose
@@ -197,6 +206,7 @@ class DepSolver(object):
 def main():
     parser = OptionParser()
     parser.add_option("-c", "--config", help="Config file")
+    parser.add_option("-t", "--tmpdir", help="Temporary directory to use")
     parser.add_option("-v", "--verbose", help="Verbosity level",
                       action="count")
     (options, args) = parser.parse_args()
@@ -221,7 +231,14 @@ def main():
         logger.error("Config file %s not found" % options.config)
         return 1
 
-    depsolver = DepSolver(options.config, options.verbose)
+    if options.tmpdir:
+        tmpdir = options.tmpdir
+    else:
+        tmpdir = tempfile.mkdtemp()
+        logger.debug("Using %s as temp dir" % tmpdir)
+        atexit.register(lambda: shutil.rmtree(tmpdir))
+
+    depsolver = DepSolver(options.config, tmpdir, options.verbose)
     if cmd == "clean":
         depsolver.clean_cache()
         print(json.dumps(True))
