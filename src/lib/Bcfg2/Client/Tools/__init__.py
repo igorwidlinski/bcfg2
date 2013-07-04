@@ -600,7 +600,7 @@ class SvcTool(Tool):
                 continue
 
             success = False
-            if entry.get('status') == 'on':
+            if entry.get('status') == 'on' or entry.get('bootstatus') == 'on'):
                 if self.setup['servicemode'] == 'build':
                     success = self.stop_service(entry)
                 elif entry.get('name') not in self.restarted:
